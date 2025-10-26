@@ -1,0 +1,50 @@
+[s, fs] = audioread('dsbmix.wav');
+t = (0:length(s)-1)' / fs;
+
+
+fc_candidates = 10000:1:14000; 
+phases = [0, pi/4, pi/2, 3*pi/4, pi];
+
+max_Ey = -1;
+best_fc = 0;
+best_phase = 0;
+
+
+for fc = fc_candidates
+    for phase = phases
+        carrier = cos(2*pi*fc*t + phase);
+        y = s .* carrier;
+        Ey = sum(y.^2);
+        
+        if Ey > max_Ey
+            max_Ey = Ey;
+            best_fc = fc;
+            best_phase = phase;
+        end
+    end
+end
+
+fprintf('Βέλτιστη συχνότητα: %d Hz\n', best_fc);
+fprintf('Βέλτιστη φάση: %f rad\n', best_phase);
+fprintf('Μέγιστη ενέργεια Ey: %f\n', max_Ey);
+
+
+carrier_opt = cos(2*pi*best_fc*t + best_phase);
+y_opt = s .* carrier_opt;
+
+
+fc_cutoff = 4000;
+y_filtered = lowpass_filter(y_opt, fs, fc_cutoff);
+m = 2 * y_filtered; 
+
+audiowrite('demodulated.wav', m, fs);
+sound(m, fs);
+
+
+function y_filtered = lowpass_filter(x, fs, fc)
+    order = 50;
+    nyq = fs/2;
+    normal_cutoff = fc / nyq;
+    b = fir1(order, normal_cutoff, 'low');
+    y_filtered = filter(b, 1, x);
+end
